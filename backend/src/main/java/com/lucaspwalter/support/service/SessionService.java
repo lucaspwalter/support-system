@@ -1,5 +1,6 @@
 package com.lucaspwalter.support.service;
 
+import com.lucaspwalter.support.dto.AgentDTO;
 import com.lucaspwalter.support.dto.SessionDTO;
 import com.lucaspwalter.support.model.Agent;
 import com.lucaspwalter.support.model.AgentStatus;
@@ -73,7 +74,10 @@ public class SessionService {
         if (agent != null) {
             agent.setStatus(AgentStatus.AVAILABLE);
             agentRepository.save(agent);
-            messagingTemplate.convertAndSend("/topic/agents", agentRepository.findAll());
+            List<AgentDTO> agents = agentRepository.findAll().stream()
+                    .map(AgentDTO::from)
+                    .toList();
+            messagingTemplate.convertAndSend("/topic/agents", agents);
         }
 
         queueService.broadcastQueue();

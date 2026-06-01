@@ -1,5 +1,6 @@
 package com.lucaspwalter.support.controller;
 
+import com.lucaspwalter.support.dto.AgentDTO;
 import com.lucaspwalter.support.model.Agent;
 import com.lucaspwalter.support.model.AgentStatus;
 import com.lucaspwalter.support.repository.AgentRepository;
@@ -14,7 +15,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -59,11 +59,5 @@ public class AgentController {
     }
 
     public record UpdateStatusRequest(AgentStatus status) {
-    }
-
-    public record AgentDTO(UUID id, String name, AgentStatus status, LocalDateTime createdAt) {
-        static AgentDTO from(Agent agent) {
-            return new AgentDTO(agent.getId(), agent.getName(), agent.getStatus(), agent.getCreatedAt());
-        }
     }
 }

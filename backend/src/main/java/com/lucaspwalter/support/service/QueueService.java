@@ -1,5 +1,6 @@
 package com.lucaspwalter.support.service;
 
+import com.lucaspwalter.support.dto.AgentDTO;
 import com.lucaspwalter.support.dto.QueueDTO;
 import com.lucaspwalter.support.dto.SessionDTO;
 import com.lucaspwalter.support.model.Agent;
@@ -67,6 +68,9 @@ public class QueueService {
     }
 
     public void broadcastAgents() {
-        messagingTemplate.convertAndSend("/topic/agents", agentRepository.findAll());
+        List<AgentDTO> agents = agentRepository.findAll().stream()
+                .map(AgentDTO::from)
+                .toList();
+        messagingTemplate.convertAndSend("/topic/agents", agents);
     }
 }
