@@ -1,11 +1,19 @@
 import { Client, IMessage, StompSubscription } from "@stomp/stompjs";
 import SockJS from "sockjs-client";
 
-const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
+const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "";
+const wsUrl = process.env.NEXT_PUBLIC_WS_URL ?? "";
+
+function sockJsUrl() {
+  const baseUrl = (wsUrl || apiUrl)
+    .replace(/^wss:\/\//, "https://")
+    .replace(/^ws:\/\//, "http://");
+  return `${baseUrl}/ws`;
+}
 
 export function createStompClient(onConnect?: () => void) {
   const client = new Client({
-    webSocketFactory: () => new SockJS(`${apiUrl}/ws`),
+    webSocketFactory: () => new SockJS(sockJsUrl()),
     reconnectDelay: 3000,
     onConnect
   });
@@ -33,4 +41,4 @@ export function sendJson(client: Client, destination: string, payload: unknown) 
   });
 }
 
-export { apiUrl };
+export { apiUrl, wsUrl };
