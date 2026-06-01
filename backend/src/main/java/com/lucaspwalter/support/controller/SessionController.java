@@ -45,10 +45,13 @@ public class SessionController {
     }
 
     @MessageMapping("/session.close")
-    public void close(String sessionId) {
-        sessionService.closeSession(UUID.fromString(sessionId.replace("\"", "")));
+    public void close(CloseSessionRequest request) {
+        sessionService.closeSession(request.sessionId());
     }
 
     public record CreateSessionRequest(String clientName, String subject) {
+    }
+
+    public record CloseSessionRequest(UUID sessionId) {
     }
 }
