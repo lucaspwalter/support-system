@@ -36,6 +36,7 @@ type Message = {
   id?: string;
   sessionId: string;
   senderType: SenderType;
+  eventType?: "SESSION_CLOSED";
   content: string;
   sentAt?: string;
 };
@@ -83,10 +84,12 @@ export default function AgentPage() {
   const [activeSession, setActiveSession] = useState<Session | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [content, setContent] = useState("");
+  const [closeError, setCloseError] = useState("");
   const [isConnected, setIsConnected] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
   const stompRef = useRef<Client | null>(null);
   const activeSessionSubRef = useRef<StompSubscription | null>(null);
+  const closeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const selectedAgent = useMemo(
     () => agents.find((agent) => agent.id === selectedAgentId) ?? null,
@@ -122,11 +125,19 @@ export default function AgentPage() {
     stompRef.current = client;
 
     return () => {
+      clearCloseTimeout();
       activeSessionSubRef.current?.unsubscribe();
       setIsConnected(false);
       client.deactivate();
     };
   }, []);
+
+  function clearCloseTimeout() {
+    if (closeTimeoutRef.current) {
+      clearTimeout(closeTimeoutRef.current);
+      closeTimeoutRef.current = null;
+    }
+  }
 
   async function updateStatus(status: AgentStatus) {
     if (!selectedAgentId) {
@@ -152,7 +163,7 @@ export default function AgentPage() {
     activeSessionSubRef.current?.unsubscribe();
     activeSessionSubRef.current = subscribeJson<Message | Session>(stompRef.current, `/topic/session/${sessionId}`, (payload) => {
       if (isMessage(payload)) {
-        if (payload.senderType === "SYSTEM") {
+        if (payload.senderType === "SYSTEM" && payload.eventType === "SESSION_CLOSED") {
           clearActiveSession(activeSession?.agentId ?? selectedAgentId);
           return;
         }
@@ -176,6 +187,7 @@ export default function AgentPage() {
   }
 
   function clearActiveSession(agentId?: string | null) {
+    clearCloseTimeout();
     activeSessionSubRef.current?.unsubscribe();
     activeSessionSubRef.current = null;
     if (agentId) {
@@ -186,6 +198,7 @@ export default function AgentPage() {
     setMessages([]);
     setContent("");
     setIsClosing(false);
+    setCloseError("");
   }
 
   async function acceptSession(sessionId: string) {
@@ -206,6 +219,7 @@ export default function AgentPage() {
     setActiveSession(accepted);
     setMessages([]);
     setContent("");
+    setCloseError("");
     subscribeToSession(accepted.id);
 
     const historyResponse = await fetch(`${apiUrl}/sessions/${accepted.id}/messages`);
@@ -234,6 +248,13 @@ export default function AgentPage() {
     }
 
     setIsClosing(true);
+    setCloseError("");
+    clearCloseTimeout();
+    closeTimeoutRef.current = setTimeout(() => {
+      closeTimeoutRef.current = null;
+      setIsClosing(false);
+      setCloseError("Não foi possível confirmar o encerramento da sessão. Tente novamente.");
+    }, 5000);
     sendJson(stompRef.current, "/app/session.close", activeSession.id);
   }
 
@@ -367,6 +388,11 @@ export default function AgentPage() {
                   {isClosing ? "Encerrando..." : "Encerrar sessão"}
                 </button>
               </header>
+              {closeError && (
+                <div className="border-b border-red-100 bg-red-50 px-6 py-3 text-sm font-medium text-red-700">
+                  {closeError}
+                </div>
+              )}
 
               <div className="flex-1 overflow-y-auto bg-gray-50 px-6 py-6">
                 <div className="mx-auto flex max-w-4xl flex-col gap-3">
