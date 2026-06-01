@@ -1,7 +1,6 @@
 package com.lucaspwalter.support.service;
 
 import com.lucaspwalter.support.dto.SessionDTO;
-import com.lucaspwalter.support.dto.SystemMessageDTO;
 import com.lucaspwalter.support.model.Agent;
 import com.lucaspwalter.support.model.AgentStatus;
 import com.lucaspwalter.support.model.Session;
@@ -15,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -61,25 +61,28 @@ public class SessionService {
     }
 
     @Transactional
-    public SessionDTO closeSession(UUID sessionId) {
-        Session session = sessionRepository.findById(sessionId)
+    public void closeSession(String sessionId) {
+        Session session = sessionRepository.findById(UUID.fromString(sessionId.replace("\"", "").trim()))
                 .orElseThrow(() -> new EntityNotFoundException("Session not found"));
 
-        if (session.getStatus() != SessionStatus.CLOSED) {
-            session.setStatus(SessionStatus.CLOSED);
-            session.setClosedAt(LocalDateTime.now());
-            Agent agent = session.getAgent();
-            if (agent != null) {
-                agent.setStatus(AgentStatus.AVAILABLE);
-                agentRepository.save(agent);
-            }
-            sessionRepository.save(session);
+        session.setStatus(SessionStatus.CLOSED);
+        session.setClosedAt(LocalDateTime.now());
+        sessionRepository.save(session);
+
+        Agent agent = session.getAgent();
+        if (agent != null) {
+            agent.setStatus(AgentStatus.AVAILABLE);
+            agentRepository.save(agent);
+            messagingTemplate.convertAndSend("/topic/agents", agentRepository.findAll());
         }
 
-        SessionDTO dto = SessionDTO.from(session);
         queueService.broadcastQueue();
-        queueService.broadcastAgents();
-        messagingTemplate.convertAndSend("/topic/session/" + sessionId, SystemMessageDTO.sessionClosed(sessionId));
-        return dto;
+        messagingTemplate.convertAndSend("/topic/session/" + sessionId.replace("\"", "").trim(), Map.of("eventType", "SESSION_CLOSED"));
+    }
+
+    @Transactional
+    public SessionDTO closeSession(UUID sessionId) {
+        closeSession(sessionId.toString());
+        return getSession(sessionId);
     }
 }

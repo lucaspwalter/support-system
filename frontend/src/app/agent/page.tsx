@@ -36,9 +36,12 @@ type Message = {
   id?: string;
   sessionId: string;
   senderType: SenderType;
-  eventType?: "SESSION_CLOSED";
   content: string;
   sentAt?: string;
+};
+
+type SessionEvent = {
+  eventType: "SESSION_CLOSED";
 };
 
 const agentStatusLabel: Record<AgentStatus, string> = {
@@ -61,8 +64,12 @@ function AgentStatusBadge({ status }: { status: AgentStatus }) {
   );
 }
 
-function isMessage(payload: Message | Session): payload is Message {
+function isMessage(payload: Message | Session | SessionEvent): payload is Message {
   return "content" in payload;
+}
+
+function isSessionClosedEvent(payload: Message | Session | SessionEvent): payload is SessionEvent {
+  return "eventType" in payload && payload.eventType === "SESSION_CLOSED";
 }
 
 function waitTime(startedAt: string) {
@@ -161,12 +168,13 @@ export default function AgentPage() {
     }
 
     activeSessionSubRef.current?.unsubscribe();
-    activeSessionSubRef.current = subscribeJson<Message | Session>(stompRef.current, `/topic/session/${sessionId}`, (payload) => {
+    activeSessionSubRef.current = subscribeJson<Message | Session | SessionEvent>(stompRef.current, `/topic/session/${sessionId}`, (payload) => {
+      if (isSessionClosedEvent(payload)) {
+        clearActiveSession(activeSession?.agentId ?? selectedAgentId);
+        return;
+      }
+
       if (isMessage(payload)) {
-        if (payload.senderType === "SYSTEM" && payload.eventType === "SESSION_CLOSED") {
-          clearActiveSession(activeSession?.agentId ?? selectedAgentId);
-          return;
-        }
         setMessages((current) => [...current, payload]);
         return;
       }
@@ -250,6 +258,7 @@ export default function AgentPage() {
     setIsClosing(true);
     setCloseError("");
     clearCloseTimeout();
+    subscribeToSession(activeSession.id);
     closeTimeoutRef.current = setTimeout(() => {
       closeTimeoutRef.current = null;
       setIsClosing(false);

@@ -4,10 +4,7 @@ import com.lucaspwalter.support.dto.MessageDTO;
 import com.lucaspwalter.support.service.MessageService;
 import com.lucaspwalter.support.service.SessionService;
 import org.springframework.messaging.handler.annotation.MessageMapping;
-import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.web.bind.annotation.RestController;
-
-import java.util.UUID;
 
 @RestController
 public class MessageController {
@@ -26,7 +23,7 @@ public class MessageController {
     }
 
     @MessageMapping("session.close")
-    public void close(@Payload String sessionId) {
-        sessionService.closeSession(UUID.fromString(sessionId.replace("\"", "").trim()));
+    public void closeSession(String sessionId) {
+        sessionService.closeSession(sessionId);
     }
 }
