@@ -1,12 +1,13 @@
 "use client";
 
 import { Client, StompSubscription } from "@stomp/stompjs";
-import { CheckCircle2, Clock3, MessageCircle, Send, Users, XCircle } from "lucide-react";
+import { Archive, CheckCircle2, Clock3, MessageCircle, Send, Users, XCircle } from "lucide-react";
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { apiUrl, createStompClient, sendJson, subscribeJson } from "@/lib/websocket";
 
 type AgentStatus = "AVAILABLE" | "BUSY" | "AWAY";
-type SenderType = "CLIENT" | "AGENT";
+type SenderType = "CLIENT" | "AGENT" | "SYSTEM";
 type SessionStatus = "WAITING" | "ACTIVE" | "CLOSED";
 
 type Agent = {
@@ -28,6 +29,7 @@ type Session = {
   subject: string;
   status: SessionStatus;
   agentId: string | null;
+  agentName?: string | null;
 };
 
 type Message = {
@@ -142,20 +144,6 @@ export default function AgentPage() {
     }
   }
 
-  async function refreshAgentsAndQueue() {
-    const [agentsResponse, queueResponse] = await Promise.all([
-      fetch(`${apiUrl}/agents`),
-      fetch(`${apiUrl}/queue`)
-    ]);
-
-    if (agentsResponse.ok) {
-      setAgents((await agentsResponse.json()) as Agent[]);
-    }
-    if (queueResponse.ok) {
-      setQueue((await queueResponse.json()) as QueueItem[]);
-    }
-  }
-
   function subscribeToSession(sessionId: string) {
     if (!stompRef.current?.connected) {
       return;
@@ -164,6 +152,10 @@ export default function AgentPage() {
     activeSessionSubRef.current?.unsubscribe();
     activeSessionSubRef.current = subscribeJson<Message | Session>(stompRef.current, `/topic/session/${sessionId}`, (payload) => {
       if (isMessage(payload)) {
+        if (payload.senderType === "SYSTEM") {
+          clearActiveSession(activeSession?.agentId ?? selectedAgentId);
+          return;
+        }
         setMessages((current) => [...current, payload]);
         return;
       }
@@ -236,28 +228,13 @@ export default function AgentPage() {
     setContent("");
   }
 
-  async function closeSession() {
-    if (!activeSession || isClosing) {
+  function closeSession() {
+    if (!activeSession || isClosing || !stompRef.current?.connected) {
       return;
     }
 
-    const closingSessionId = activeSession.id;
-    const closingAgentId = activeSession.agentId ?? selectedAgentId;
     setIsClosing(true);
-
-    try {
-      const response = await fetch(`${apiUrl}/sessions/${closingSessionId}/close`, { method: "POST" });
-      if (!response.ok) {
-        throw new Error(`Failed to close session: ${response.status}`);
-      }
-
-      const closed = (await response.json()) as Session;
-      await refreshAgentsAndQueue();
-      clearActiveSession(closed.agentId ?? closingAgentId);
-    } catch (error) {
-      console.error(error);
-      setIsClosing(false);
-    }
+    sendJson(stompRef.current, "/app/session.close", activeSession.id);
   }
 
   return (
@@ -307,6 +284,13 @@ export default function AgentPage() {
                 Ausente
               </button>
             </div>
+            <Link
+              className="mt-3 flex h-9 items-center justify-center gap-2 rounded-lg border border-line bg-white px-3 text-xs font-semibold text-gray-700 transition hover:bg-gray-50"
+              href="/history"
+            >
+              <Archive size={15} aria-hidden />
+              Histórico
+            </Link>
           </div>
 
           <div className="space-y-6 px-5 py-5">
@@ -377,7 +361,7 @@ export default function AgentPage() {
                   className="inline-flex h-10 items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 text-sm font-semibold text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
                   type="button"
                   onClick={closeSession}
-                  disabled={activeSession.status === "CLOSED" || isClosing}
+                  disabled={activeSession.status === "CLOSED" || isClosing || !isConnected}
                 >
                   <XCircle size={17} aria-hidden />
                   {isClosing ? "Encerrando..." : "Encerrar sessão"}

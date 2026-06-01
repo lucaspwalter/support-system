@@ -9,4 +9,6 @@ import java.util.UUID;
 
 public interface SessionRepository extends JpaRepository<Session, UUID> {
     List<Session> findByStatusOrderByStartedAtAsc(SessionStatus status);
+
+    List<Session> findByStatusOrderByStartedAtDesc(SessionStatus status);
 }

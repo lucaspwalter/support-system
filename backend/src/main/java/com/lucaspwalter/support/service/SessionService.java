@@ -1,6 +1,7 @@
 package com.lucaspwalter.support.service;
 
 import com.lucaspwalter.support.dto.SessionDTO;
+import com.lucaspwalter.support.dto.SystemMessageDTO;
 import com.lucaspwalter.support.model.Agent;
 import com.lucaspwalter.support.model.AgentStatus;
 import com.lucaspwalter.support.model.Session;
@@ -13,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -44,6 +46,20 @@ public class SessionService {
                 .orElseThrow(() -> new EntityNotFoundException("Session not found"));
     }
 
+    @Transactional(readOnly = true)
+    public List<SessionDTO> listSessions(String status) {
+        if (status == null || status.isBlank()) {
+            return sessionRepository.findAll().stream()
+                    .map(SessionDTO::from)
+                    .toList();
+        }
+
+        SessionStatus sessionStatus = SessionStatus.valueOf(status.toUpperCase());
+        return sessionRepository.findByStatusOrderByStartedAtDesc(sessionStatus).stream()
+                .map(SessionDTO::from)
+                .toList();
+    }
+
     @Transactional
     public SessionDTO closeSession(UUID sessionId) {
         Session session = sessionRepository.findById(sessionId)
@@ -63,7 +79,7 @@ public class SessionService {
         SessionDTO dto = SessionDTO.from(session);
         queueService.broadcastQueue();
         queueService.broadcastAgents();
-        messagingTemplate.convertAndSend("/topic/session/" + sessionId, dto);
+        messagingTemplate.convertAndSend("/topic/session/" + sessionId, SystemMessageDTO.sessionClosed(sessionId));
         return dto;
     }
 }

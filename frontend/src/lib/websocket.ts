@@ -25,10 +25,11 @@ export function subscribeJson<T>(
 }
 
 export function sendJson(client: Client, destination: string, payload: unknown) {
+  const isRawText = typeof payload === "string";
   client.publish({
     destination,
-    headers: { "content-type": "application/json" },
-    body: typeof payload === "string" ? payload : JSON.stringify(payload)
+    headers: { "content-type": isRawText ? "text/plain" : "application/json" },
+    body: isRawText ? payload : JSON.stringify(payload)
   });
 }
 

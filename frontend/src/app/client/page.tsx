@@ -5,7 +5,7 @@ import { MessageCircle, Send, XCircle } from "lucide-react";
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { apiUrl, createStompClient, sendJson, subscribeJson } from "@/lib/websocket";
 
-type SenderType = "CLIENT" | "AGENT";
+type SenderType = "CLIENT" | "AGENT" | "SYSTEM";
 type SessionStatus = "WAITING" | "ACTIVE" | "CLOSED";
 
 type Session = {
@@ -14,6 +14,7 @@ type Session = {
   subject: string;
   status: SessionStatus;
   agentId: string | null;
+  agentName?: string | null;
 };
 
 type Message = {
@@ -120,11 +121,18 @@ export default function ClientPage() {
       sessionSubRef.current = subscribeJson<Message | Session>(client, `/topic/session/${created.id}`, (payload) => {
         if (isMessage(payload)) {
           setMessages((current) => [...current, payload]);
+          if (payload.senderType === "SYSTEM") {
+            setSession((current) => (current ? { ...current, status: "CLOSED" } : current));
+            setContent("");
+            setIsClosing(false);
+          }
           return;
         }
 
         if (payload.status === "CLOSED") {
-          clearSessionState("Atendimento encerrado.");
+          setSession(payload);
+          setContent("");
+          setIsClosing(false);
           return;
         }
 
@@ -148,26 +156,13 @@ export default function ClientPage() {
     setContent("");
   }
 
-  async function closeSession() {
-    if (!session || isClosing) {
+  function closeSession() {
+    if (!session || isClosing || !stompRef.current?.connected) {
       return;
     }
 
     setIsClosing(true);
-    if (stompRef.current?.connected) {
-      sendJson(stompRef.current, "/app/session.close", { sessionId: session.id });
-    }
-
-    const response = await fetch(`${apiUrl}/sessions/${session.id}/close`, { method: "POST" });
-    if (response.ok) {
-      const closed = (await response.json()) as Session;
-      if (closed.status === "CLOSED") {
-        clearSessionState("Atendimento encerrado.");
-        return;
-      }
-      setSession(closed);
-    }
-    setIsClosing(false);
+    sendJson(stompRef.current, "/app/session.close", session.id);
   }
 
   if (!session) {
@@ -230,7 +225,7 @@ export default function ClientPage() {
             className="inline-flex h-10 items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 text-sm font-semibold text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
             type="button"
             onClick={closeSession}
-            disabled={session.status === "CLOSED" || isClosing}
+            disabled={session.status === "CLOSED" || isClosing || !isConnected}
           >
             <XCircle size={17} aria-hidden />
             {isClosing ? "Encerrando..." : "Encerrar atendimento"}
@@ -245,6 +240,16 @@ export default function ClientPage() {
               </div>
             ) : (
               messages.map((message, index) => {
+                if (message.senderType === "SYSTEM") {
+                  return (
+                    <article className="flex justify-center" key={message.id ?? index}>
+                      <div className="rounded-full bg-gray-200 px-4 py-2 text-xs font-semibold text-gray-700">
+                        {message.content}
+                      </div>
+                    </article>
+                  );
+                }
+
                 const isClient = message.senderType === "CLIENT";
                 return (
                   <article className={`flex ${isClient ? "justify-end" : "justify-start"}`} key={message.id ?? index}>

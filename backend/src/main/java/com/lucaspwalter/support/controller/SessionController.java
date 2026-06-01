@@ -4,14 +4,13 @@ import com.lucaspwalter.support.dto.MessageDTO;
 import com.lucaspwalter.support.dto.SessionDTO;
 import com.lucaspwalter.support.service.MessageService;
 import com.lucaspwalter.support.service.SessionService;
-import org.springframework.messaging.handler.annotation.Payload;
-import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -35,6 +34,11 @@ public class SessionController {
         return sessionService.createSession(request.clientName(), request.subject());
     }
 
+    @GetMapping
+    public List<SessionDTO> list(@RequestParam(required = false) String status) {
+        return sessionService.listSessions(status);
+    }
+
     @GetMapping("/{id}")
     public SessionDTO get(@PathVariable UUID id) {
         return sessionService.getSession(id);
@@ -50,14 +54,6 @@ public class SessionController {
         return sessionService.closeSession(id);
     }
 
-    @MessageMapping("/session.close")
-    public void close(@Payload CloseSessionRequest request) {
-        sessionService.closeSession(request.sessionId());
-    }
-
     public record CreateSessionRequest(String clientName, String subject) {
-    }
-
-    public record CloseSessionRequest(UUID sessionId) {
     }
 }
