@@ -142,6 +142,20 @@ export default function AgentPage() {
     }
   }
 
+  async function refreshAgentsAndQueue() {
+    const [agentsResponse, queueResponse] = await Promise.all([
+      fetch(`${apiUrl}/agents`),
+      fetch(`${apiUrl}/queue`)
+    ]);
+
+    if (agentsResponse.ok) {
+      setAgents((await agentsResponse.json()) as Agent[]);
+    }
+    if (queueResponse.ok) {
+      setQueue((await queueResponse.json()) as QueueItem[]);
+    }
+  }
+
   function subscribeToSession(sessionId: string) {
     if (!stompRef.current?.connected) {
       return;
@@ -230,20 +244,20 @@ export default function AgentPage() {
     const closingSessionId = activeSession.id;
     const closingAgentId = activeSession.agentId ?? selectedAgentId;
     setIsClosing(true);
-    if (stompRef.current?.connected) {
-      sendJson(stompRef.current, "/app/session.close", { sessionId: closingSessionId });
-    }
 
-    const response = await fetch(`${apiUrl}/sessions/${closingSessionId}/close`, { method: "POST" });
-    if (response.ok) {
-      const closed = (await response.json()) as Session;
-      if (closed.status === "CLOSED") {
-        clearActiveSession(closed.agentId ?? closingAgentId);
-        return;
+    try {
+      const response = await fetch(`${apiUrl}/sessions/${closingSessionId}/close`, { method: "POST" });
+      if (!response.ok) {
+        throw new Error(`Failed to close session: ${response.status}`);
       }
-      setActiveSession(closed);
+
+      const closed = (await response.json()) as Session;
+      await refreshAgentsAndQueue();
+      clearActiveSession(closed.agentId ?? closingAgentId);
+    } catch (error) {
+      console.error(error);
+      setIsClosing(false);
     }
-    setIsClosing(false);
   }
 
   return (
