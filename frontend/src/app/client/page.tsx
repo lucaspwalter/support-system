@@ -25,6 +25,10 @@ type Message = {
   sentAt?: string;
 };
 
+type SessionEvent = {
+  eventType: "SESSION_CLOSED";
+};
+
 const statusLabel: Record<SessionStatus, string> = {
   WAITING: "Aguardando",
   ACTIVE: "Em atendimento",
@@ -45,8 +49,12 @@ function StatusBadge({ status }: { status: SessionStatus }) {
   );
 }
 
-function isMessage(payload: Message | Session): payload is Message {
+function isMessage(payload: Message | Session | SessionEvent): payload is Message {
   return "content" in payload;
+}
+
+function isSessionClosedEvent(payload: Message | Session | SessionEvent): payload is SessionEvent {
+  return "eventType" in payload && payload.eventType === "SESSION_CLOSED";
 }
 
 export default function ClientPage() {
@@ -61,6 +69,8 @@ export default function ClientPage() {
   const [isClosing, setIsClosing] = useState(false);
   const stompRef = useRef<Client | null>(null);
   const sessionSubRef = useRef<StompSubscription | null>(null);
+  const closeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const closeRequestedByClientRef = useRef(false);
 
   const canSend = useMemo(
     () => Boolean(session && session.status !== "CLOSED" && content.trim() && stompRef.current?.connected),
@@ -69,12 +79,33 @@ export default function ClientPage() {
 
   useEffect(() => {
     return () => {
+      clearCloseTimeout();
       sessionSubRef.current?.unsubscribe();
       stompRef.current?.deactivate();
     };
   }, []);
 
+  function clearCloseTimeout() {
+    if (closeTimeoutRef.current) {
+      clearTimeout(closeTimeoutRef.current);
+      closeTimeoutRef.current = null;
+    }
+  }
+
+  function handleSessionClosed(notice: string) {
+    clearCloseTimeout();
+    closeRequestedByClientRef.current = false;
+    sessionSubRef.current?.unsubscribe();
+    sessionSubRef.current = null;
+    setSession((current) => (current ? { ...current, status: "CLOSED" } : current));
+    setContent("");
+    setIsClosing(false);
+    setError("");
+    setClosedNotice(notice);
+  }
+
   function clearSessionState(notice?: string) {
+    clearCloseTimeout();
     sessionSubRef.current?.unsubscribe();
     sessionSubRef.current = null;
     stompRef.current?.deactivate();
@@ -84,9 +115,36 @@ export default function ClientPage() {
     setMessages([]);
     setContent("");
     setIsClosing(false);
+    closeRequestedByClientRef.current = false;
     if (notice) {
       setClosedNotice(notice);
     }
+  }
+
+  function subscribeToSession(client: Client, sessionId: string) {
+    if (!client.connected) {
+      return;
+    }
+
+    sessionSubRef.current?.unsubscribe();
+    sessionSubRef.current = subscribeJson<Message | Session | SessionEvent>(client, `/topic/session/${sessionId}`, (payload) => {
+      if (isSessionClosedEvent(payload)) {
+        handleSessionClosed(closeRequestedByClientRef.current ? "Atendimento encerrado." : "Atendimento encerrado pelo suporte.");
+        return;
+      }
+
+      if (isMessage(payload)) {
+        setMessages((current) => [...current, payload]);
+        return;
+      }
+
+      if (payload.status === "CLOSED") {
+        handleSessionClosed(closeRequestedByClientRef.current ? "Atendimento encerrado." : "Atendimento encerrado pelo suporte.");
+        return;
+      }
+
+      setSession(payload);
+    });
   }
 
   async function openSession(event: FormEvent<HTMLFormElement>) {
@@ -118,26 +176,7 @@ export default function ClientPage() {
     setIsConnected(false);
     const client = createStompClient(() => {
       setIsConnected(true);
-      sessionSubRef.current = subscribeJson<Message | Session>(client, `/topic/session/${created.id}`, (payload) => {
-        if (isMessage(payload)) {
-          setMessages((current) => [...current, payload]);
-          if (payload.senderType === "SYSTEM") {
-            setSession((current) => (current ? { ...current, status: "CLOSED" } : current));
-            setContent("");
-            setIsClosing(false);
-          }
-          return;
-        }
-
-        if (payload.status === "CLOSED") {
-          setSession(payload);
-          setContent("");
-          setIsClosing(false);
-          return;
-        }
-
-        setSession(payload);
-      });
+      subscribeToSession(client, created.id);
     });
     stompRef.current = client;
   }
@@ -162,6 +201,16 @@ export default function ClientPage() {
     }
 
     setIsClosing(true);
+    setClosedNotice("");
+    closeRequestedByClientRef.current = true;
+    subscribeToSession(stompRef.current, session.id);
+    clearCloseTimeout();
+    closeTimeoutRef.current = setTimeout(() => {
+      closeTimeoutRef.current = null;
+      closeRequestedByClientRef.current = false;
+      setIsClosing(false);
+      setError("Não foi possível confirmar o encerramento do atendimento. Tente novamente.");
+    }, 5000);
     sendJson(stompRef.current, "/app/session.close", session.id);
   }
 
@@ -221,16 +270,28 @@ export default function ClientPage() {
             </div>
             <p className="text-sm text-gray-500">{session.clientName}</p>
           </div>
-          <button
-            className="inline-flex h-10 items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 text-sm font-semibold text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
-            type="button"
-            onClick={closeSession}
-            disabled={session.status === "CLOSED" || isClosing || !isConnected}
-          >
-            <XCircle size={17} aria-hidden />
-            {isClosing ? "Encerrando..." : "Encerrar atendimento"}
-          </button>
+          {session.status !== "CLOSED" && (
+            <button
+              className="inline-flex h-10 items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 text-sm font-semibold text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
+              type="button"
+              onClick={closeSession}
+              disabled={isClosing || !isConnected}
+            >
+              <XCircle size={17} aria-hidden />
+              {isClosing ? "Encerrando..." : "Encerrar atendimento"}
+            </button>
+          )}
         </header>
+        {closedNotice && (
+          <div className="border-b border-blue-100 bg-blue-50 px-5 py-3 text-sm font-semibold text-blue-700">
+            {closedNotice}
+          </div>
+        )}
+        {error && (
+          <div className="border-b border-red-100 bg-red-50 px-5 py-3 text-sm font-medium text-red-700">
+            {error}
+          </div>
+        )}
 
         <div className="flex-1 overflow-y-auto bg-gray-50 px-5 py-6">
           <div className="mx-auto flex max-w-3xl flex-col gap-3">
@@ -273,6 +334,7 @@ export default function ClientPage() {
               value={content}
               onChange={(event) => setContent(event.target.value)}
               placeholder="Digite sua mensagem"
+              disabled={session.status === "CLOSED"}
             />
             <button
               className="inline-flex h-12 items-center gap-2 rounded-xl bg-primary px-5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
