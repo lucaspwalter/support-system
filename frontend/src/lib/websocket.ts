@@ -27,6 +27,7 @@ export function subscribeJson<T>(
 export function sendJson(client: Client, destination: string, payload: unknown) {
   client.publish({
     destination,
+    headers: { "content-type": "application/json" },
     body: typeof payload === "string" ? payload : JSON.stringify(payload)
   });
 }

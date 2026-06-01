@@ -57,6 +57,7 @@ export default function ClientPage() {
   const [error, setError] = useState("");
   const [closedNotice, setClosedNotice] = useState("");
   const [isConnected, setIsConnected] = useState(false);
+  const [isClosing, setIsClosing] = useState(false);
   const stompRef = useRef<Client | null>(null);
   const sessionSubRef = useRef<StompSubscription | null>(null);
 
@@ -81,6 +82,7 @@ export default function ClientPage() {
     setSession(null);
     setMessages([]);
     setContent("");
+    setIsClosing(false);
     if (notice) {
       setClosedNotice(notice);
     }
@@ -146,12 +148,26 @@ export default function ClientPage() {
     setContent("");
   }
 
-  function closeSession() {
-    if (!session || !stompRef.current?.connected) {
+  async function closeSession() {
+    if (!session || isClosing) {
       return;
     }
 
-    sendJson(stompRef.current, "/app/session.close", { sessionId: session.id });
+    setIsClosing(true);
+    if (stompRef.current?.connected) {
+      sendJson(stompRef.current, "/app/session.close", { sessionId: session.id });
+    }
+
+    const response = await fetch(`${apiUrl}/sessions/${session.id}/close`, { method: "POST" });
+    if (response.ok) {
+      const closed = (await response.json()) as Session;
+      if (closed.status === "CLOSED") {
+        clearSessionState("Atendimento encerrado.");
+        return;
+      }
+      setSession(closed);
+    }
+    setIsClosing(false);
   }
 
   if (!session) {
@@ -214,10 +230,10 @@ export default function ClientPage() {
             className="inline-flex h-10 items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 text-sm font-semibold text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
             type="button"
             onClick={closeSession}
-            disabled={session.status === "CLOSED" || !isConnected}
+            disabled={session.status === "CLOSED" || isClosing}
           >
             <XCircle size={17} aria-hidden />
-            Encerrar atendimento
+            {isClosing ? "Encerrando..." : "Encerrar atendimento"}
           </button>
         </header>
 

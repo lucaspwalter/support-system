@@ -82,6 +82,7 @@ export default function AgentPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [content, setContent] = useState("");
   const [isConnected, setIsConnected] = useState(false);
+  const [isClosing, setIsClosing] = useState(false);
   const stompRef = useRef<Client | null>(null);
   const activeSessionSubRef = useRef<StompSubscription | null>(null);
 
@@ -154,16 +155,21 @@ export default function AgentPage() {
       }
 
       if (payload.status === "CLOSED") {
-        activeSessionSubRef.current?.unsubscribe();
-        activeSessionSubRef.current = null;
-        setActiveSession(null);
-        setMessages([]);
-        setContent("");
+        clearActiveSession();
         return;
       }
 
       setActiveSession(payload);
     });
+  }
+
+  function clearActiveSession() {
+    activeSessionSubRef.current?.unsubscribe();
+    activeSessionSubRef.current = null;
+    setActiveSession(null);
+    setMessages([]);
+    setContent("");
+    setIsClosing(false);
   }
 
   async function acceptSession(sessionId: string) {
@@ -206,12 +212,26 @@ export default function AgentPage() {
     setContent("");
   }
 
-  function closeSession() {
-    if (!activeSession || !stompRef.current?.connected) {
+  async function closeSession() {
+    if (!activeSession || isClosing) {
       return;
     }
 
-    sendJson(stompRef.current, "/app/session.close", { sessionId: activeSession.id });
+    setIsClosing(true);
+    if (stompRef.current?.connected) {
+      sendJson(stompRef.current, "/app/session.close", { sessionId: activeSession.id });
+    }
+
+    const response = await fetch(`${apiUrl}/sessions/${activeSession.id}/close`, { method: "POST" });
+    if (response.ok) {
+      const closed = (await response.json()) as Session;
+      if (closed.status === "CLOSED") {
+        clearActiveSession();
+        return;
+      }
+      setActiveSession(closed);
+    }
+    setIsClosing(false);
   }
 
   return (
@@ -331,10 +351,10 @@ export default function AgentPage() {
                   className="inline-flex h-10 items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 text-sm font-semibold text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
                   type="button"
                   onClick={closeSession}
-                  disabled={activeSession.status === "CLOSED" || !isConnected}
+                  disabled={activeSession.status === "CLOSED" || isClosing}
                 >
                   <XCircle size={17} aria-hidden />
-                  Encerrar sessão
+                  {isClosing ? "Encerrando..." : "Encerrar sessão"}
                 </button>
               </header>
 

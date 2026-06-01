@@ -4,6 +4,7 @@ import com.lucaspwalter.support.dto.MessageDTO;
 import com.lucaspwalter.support.dto.SessionDTO;
 import com.lucaspwalter.support.service.MessageService;
 import com.lucaspwalter.support.service.SessionService;
+import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -44,8 +45,13 @@ public class SessionController {
         return messageService.history(id);
     }
 
+    @PostMapping("/{id}/close")
+    public SessionDTO closeRest(@PathVariable UUID id) {
+        return sessionService.closeSession(id);
+    }
+
     @MessageMapping("/session.close")
-    public void close(CloseSessionRequest request) {
+    public void close(@Payload CloseSessionRequest request) {
         sessionService.closeSession(request.sessionId());
     }
 
