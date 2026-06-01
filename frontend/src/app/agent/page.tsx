@@ -155,7 +155,7 @@ export default function AgentPage() {
       }
 
       if (payload.status === "CLOSED") {
-        clearActiveSession();
+        clearActiveSession(payload.agentId ?? selectedAgentId);
         return;
       }
 
@@ -163,9 +163,19 @@ export default function AgentPage() {
     });
   }
 
-  function clearActiveSession() {
+  function markAgentAvailable(agentId: string) {
+    setAgents((current) =>
+      current.map((agent) => (agent.id === agentId ? { ...agent, status: "AVAILABLE" } : agent))
+    );
+  }
+
+  function clearActiveSession(agentId?: string | null) {
     activeSessionSubRef.current?.unsubscribe();
     activeSessionSubRef.current = null;
+    if (agentId) {
+      markAgentAvailable(agentId);
+      setSelectedAgentId(agentId);
+    }
     setActiveSession(null);
     setMessages([]);
     setContent("");
@@ -217,16 +227,18 @@ export default function AgentPage() {
       return;
     }
 
+    const closingSessionId = activeSession.id;
+    const closingAgentId = activeSession.agentId ?? selectedAgentId;
     setIsClosing(true);
     if (stompRef.current?.connected) {
-      sendJson(stompRef.current, "/app/session.close", { sessionId: activeSession.id });
+      sendJson(stompRef.current, "/app/session.close", { sessionId: closingSessionId });
     }
 
-    const response = await fetch(`${apiUrl}/sessions/${activeSession.id}/close`, { method: "POST" });
+    const response = await fetch(`${apiUrl}/sessions/${closingSessionId}/close`, { method: "POST" });
     if (response.ok) {
       const closed = (await response.json()) as Session;
       if (closed.status === "CLOSED") {
-        clearActiveSession();
+        clearActiveSession(closed.agentId ?? closingAgentId);
         return;
       }
       setActiveSession(closed);
