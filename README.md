@@ -1,114 +1,105 @@
-# support-system
+# Support System
 
-Sistema de suporte ao vivo com fila de atendimento, atendentes, sessões de chat e mensagens em tempo real via WebSocket STOMP.
+## O que é
 
-## Stack
+Atendimentos de suporte em tempo real precisam organizar clientes, atendentes, fila e histórico de mensagens sem depender de conversas soltas ou controles manuais. Quando várias sessões acontecem ao mesmo tempo, fica fácil perder quem está aguardando, qual atendente está disponível e quais mensagens já foram enviadas.
+
+Support System centraliza esse fluxo. O projeto permite abrir sessões de atendimento, manter clientes em fila, distribuir atendimentos para agentes disponíveis, persistir mensagens e atualizar telas em tempo real via WebSocket.
+
+## Portfólio
+
+Este projeto faz parte do meu portfólio:
+
+https://lucaspwalter.github.io/portfolio/
+
+## Como funciona
+
+- Cliente abre uma sessão informando nome e assunto
+- Sessões entram na fila com status de espera
+- Atendente aceita a próxima sessão disponível
+- Mensagens são salvas no banco de dados e transmitidas em tempo real
+- Encerramento da sessão libera o atendente
+- Alterações de fila, sessões e atendentes são refletidas na interface
+- Interface web separa acesso de cliente, atendente e histórico
+
+## API HTTP
+
+- Cria, consulta, lista e encerra sessões de atendimento
+- Lista histórico de mensagens por sessão
+- Cadastra atendentes e atualiza status
+- Exibe fila de sessões pendentes
+- Permite aceitar a próxima sessão de atendimento
+
+## WebSocket
+
+- Endpoint SockJS em `/ws`
+- Prefixo de aplicação em `/app`
+- Broker de eventos em `/topic`
+- Envio de mensagens por sessão em tempo real
+- Atualização de fila, sessões e atendentes para as telas conectadas
+
+## Tecnologias
 
 - Java 21
-- Spring Boot 3
+- Spring Boot
+- Spring Web
 - Spring WebSocket com STOMP e SockJS
 - Spring Data JPA
 - Flyway
 - PostgreSQL
-- Next.js 14
+- Next.js
 - TypeScript
+- React
+- Tailwind CSS
 
-## Funcionalidades
+## Como rodar localmente
 
-- Cliente abre uma sessão informando nome e assunto.
-- Sessões aguardam na fila com status `WAITING`.
-- Atendente aceita a próxima sessão e fica com status `BUSY`.
-- Mensagens são persistidas e transmitidas em tempo real por sessão.
-- Encerramento muda a sessão para `CLOSED` e libera o atendente.
-- Alterações de fila e status de atendentes são transmitidas por WebSocket.
+As instruções completas de instalação e execução estão disponíveis na página do projeto no portfólio:
 
-## Como rodar com Docker Compose
+https://lucaspwalter.github.io/portfolio/
 
-```bash
-docker compose up --build
-```
-
-Backend:
+## Estrutura do projeto
 
 ```text
-http://localhost:8080
-```
-
-Para rodar o frontend em outro terminal:
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-Frontend:
-
-```text
-http://localhost:3000/client
-http://localhost:3000/agent
-```
-
-## Como rodar localmente sem Docker
-
-Suba um PostgreSQL local com:
-
-```text
-database: support
-user: support
-password: support
-port: 5435
-```
-
-Configure as variáveis:
-
-```bash
-export DATABASE_URL=jdbc:postgresql://localhost:5435/support
-export DATABASE_USER=support
-export DATABASE_PASSWORD=support
-```
-
-Rode o backend:
-
-```bash
-cd backend
-mvn spring-boot:run
-```
-
-Rode o frontend:
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-## Endpoints
-
-```text
-POST   /sessions
-GET    /sessions/{id}
-GET    /sessions/{id}/messages
-
-POST   /agents
-PATCH  /agents/{id}/status
-GET    /agents
-
-GET    /queue
-POST   /queue/{sessionId}/accept
-```
-
-## WebSocket
-
-```text
-Endpoint SockJS: /ws
-Application prefix: /app
-Broker prefix: /topic
-
-/app/chat.send
-/app/session.close
-
-/topic/queue
-/topic/session/{id}
-/topic/agents
+support-system/
+├── backend/
+│   ├── src/
+│   │   └── main/
+│   │       ├── java/
+│   │       │   └── com/
+│   │       │       └── lucaspwalter/
+│   │       │           └── support/
+│   │       │               ├── config/
+│   │       │               ├── controller/
+│   │       │               ├── dto/
+│   │       │               ├── model/
+│   │       │               ├── repository/
+│   │       │               ├── service/
+│   │       │               └── SupportApplication.java
+│   │       └── resources/
+│   │           ├── db/
+│   │           │   ├── migration/
+│   │           │   └── seed/
+│   │           └── application.properties
+│   ├── Dockerfile
+│   └── pom.xml
+├── frontend/
+│   ├── src/
+│   │   ├── app/
+│   │   │   ├── agent/
+│   │   │   ├── client/
+│   │   │   ├── history/
+│   │   │   ├── layout.tsx
+│   │   │   ├── page.tsx
+│   │   │   └── styles.css
+│   │   └── lib/
+│   │       └── websocket.ts
+│   ├── next-env.d.ts
+│   ├── package-lock.json
+│   ├── package.json
+│   ├── postcss.config.js
+│   ├── tailwind.config.ts
+│   └── tsconfig.json
+├── docker-compose.yml
+└── README.md
 ```
