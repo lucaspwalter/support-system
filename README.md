@@ -54,7 +54,17 @@ https://lucaspwalter.github.io/portfolio/
 
 ## Como rodar localmente
 
-As instruções completas de instalação e execução estão disponíveis na página do projeto no portfólio:
+Com Docker instalado:
+
+```bash
+git clone https://github.com/lucaspwalter/support-system.git
+cd support-system
+docker compose up --build
+```
+
+Acesse `http://localhost:3000/client`. O banco, backend e frontend são iniciados automaticamente.
+
+Instruções manuais também estão disponíveis na página do projeto no portfólio:
 
 https://lucaspwalter.github.io/portfolio/
 
