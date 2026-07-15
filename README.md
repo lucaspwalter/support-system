@@ -1,49 +1,49 @@
 # Support System
 
-## O que é
+## What it is
 
-Atendimentos de suporte em tempo real precisam organizar clientes, atendentes, fila e histórico de mensagens sem depender de conversas soltas ou controles manuais. Quando várias sessões acontecem ao mesmo tempo, fica fácil perder quem está aguardando, qual atendente está disponível e quais mensagens já foram enviadas.
+Real-time support requires organizing customers, agents, queues, and message history without relying on scattered conversations or manual tracking. When several sessions happen at once, it becomes easy to lose track of who is waiting, which agent is available, and which messages have already been sent.
 
-Support System centraliza esse fluxo. O projeto permite abrir sessões de atendimento, manter clientes em fila, distribuir atendimentos para agentes disponíveis, persistir mensagens e atualizar telas em tempo real via WebSocket.
+Support System centralizes this workflow. It lets users open support sessions, queue customers, assign sessions to available agents, persist messages, and update screens in real time via WebSocket.
 
-## Portfólio
+## Portfolio
 
-Este projeto faz parte do meu portfólio:
+This project is part of my portfolio:
 
 https://lucaspwalter.github.io/portfolio/
 
-## Como funciona
+## How it works
 
-- Cliente abre uma sessão informando nome e assunto
-- Sessões entram na fila com status de espera
-- Atendente aceita a próxima sessão disponível
-- Mensagens são salvas no banco de dados e transmitidas em tempo real
-- Encerramento da sessão libera o atendente
-- Alterações de fila, sessões e atendentes são refletidas na interface
-- Interface web separa acesso de cliente, atendente e histórico
+- A customer opens a session with their name and topic
+- Sessions enter the queue with waiting status
+- An agent accepts the next available session
+- Messages are stored in the database and transmitted in real time
+- Closing a session makes the agent available again
+- Queue, session, and agent changes are reflected in the interface
+- The web interface provides separate customer, agent, and history views
 
-## API HTTP
+## HTTP API
 
-- Cria, consulta, lista e encerra sessões de atendimento
-- Lista histórico de mensagens por sessão
-- Cadastra atendentes e atualiza status
-- Exibe fila de sessões pendentes
-- Permite aceitar a próxima sessão de atendimento
+- Creates, retrieves, lists, and closes support sessions
+- Lists message history by session
+- Registers agents and updates their status
+- Displays the pending session queue
+- Allows agents to accept the next support session
 
 ## WebSocket
 
-- Endpoint SockJS em `/ws`
-- Prefixo de aplicação em `/app`
-- Broker de eventos em `/topic`
-- Envio de mensagens por sessão em tempo real
-- Atualização de fila, sessões e atendentes para as telas conectadas
+- SockJS endpoint at `/ws`
+- Application prefix at `/app`
+- Event broker at `/topic`
+- Real-time message delivery by session
+- Queue, session, and agent updates for connected screens
 
-## Tecnologias
+## Technologies
 
 - Java 21
 - Spring Boot
 - Spring Web
-- Spring WebSocket com STOMP e SockJS
+- Spring WebSocket with STOMP and SockJS
 - Spring Data JPA
 - Flyway
 - PostgreSQL
@@ -52,9 +52,9 @@ https://lucaspwalter.github.io/portfolio/
 - React
 - Tailwind CSS
 
-## Como rodar localmente
+## Running locally
 
-Com Docker instalado:
+With Docker installed:
 
 ```bash
 git clone https://github.com/lucaspwalter/support-system.git
@@ -62,13 +62,13 @@ cd support-system
 docker compose up --build
 ```
 
-Acesse `http://localhost:3000/client`. O banco, backend e frontend são iniciados automaticamente.
+Open `http://localhost:3000/client`. The database, backend, and frontend start automatically.
 
-Instruções manuais também estão disponíveis na página do projeto no portfólio:
+Manual instructions are also available on the project's portfolio page:
 
 https://lucaspwalter.github.io/portfolio/
 
-## Estrutura do projeto
+## Project structure
 
 ```text
 support-system/
