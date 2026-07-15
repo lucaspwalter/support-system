@@ -1,18 +1,20 @@
 # Support System
 
-## What it is
+A real-time customer support platform for managing sessions, agents, queues, and messages.
+
+## Overview
 
 Real-time support requires organizing customers, agents, queues, and message history without relying on scattered conversations or manual tracking. When several sessions happen at once, it becomes easy to lose track of who is waiting, which agent is available, and which messages have already been sent.
 
 Support System centralizes this workflow. It lets users open support sessions, queue customers, assign sessions to available agents, persist messages, and update screens in real time via WebSocket.
 
-## Portfolio
+## Demo
 
 This project is part of my portfolio:
 
 https://lucaspwalter.github.io/portfolio/
 
-## How it works
+## Features
 
 - A customer opens a session with their name and topic
 - Sessions enter the queue with waiting status
@@ -38,7 +40,7 @@ https://lucaspwalter.github.io/portfolio/
 - Real-time message delivery by session
 - Queue, session, and agent updates for connected screens
 
-## Technologies
+## Tech Stack
 
 - Java 21
 - Spring Boot
@@ -52,7 +54,7 @@ https://lucaspwalter.github.io/portfolio/
 - React
 - Tailwind CSS
 
-## Running locally
+## Getting Started
 
 With Docker installed:
 
@@ -68,7 +70,7 @@ Manual instructions are also available on the project's portfolio page:
 
 https://lucaspwalter.github.io/portfolio/
 
-## Project structure
+## Project Structure
 
 ```text
 support-system/
